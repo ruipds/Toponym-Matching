@@ -1,6 +1,6 @@
 # Toponym Matching with Deep Neural Networks
 
-This work was originally developed by Rui Santos in the context of his MSc thesis, developed at Instituto Superior Técnico of the University of Lisbon. His MSc research concerned with the development of methods for automatically georeferencing historical itineraries given in a tabular format.
+This work was originally developed by Rui Santos in the context of an MSc thesis project at Instituto Superior Técnico of the University of Lisbon. His MSc research concerned with the development of methods for automatically georeferencing historical itineraries given in a tabular format.
 
 Further developments are currently being made by Alexandre Marinho, in the context of an MSc thesis related to string matching for duplicate detection.
 
