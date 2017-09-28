@@ -12,19 +12,19 @@ Toponym matching refers to the problem of matching a pair of strings that refer 
 
 The source code provided in this repository alows one to reproduce the results described on two publications concening with toponym matching:
 
-   @article{Santos2017a,
-      author = {Santos, Rui and Murrieta-Flores, Patricia and Martins, Bruno},
-      journal = {International Journal of Digital Earth},
-      title = {Combining Multiple String Similarity Metrics for Effective Toponym Matching},
-      year = {2017}
-   }
+    @article{Santos2017a,
+       author = {Santos, Rui and Murrieta-Flores, Patricia and Martins, Bruno},
+       journal = {International Journal of Digital Earth},
+       title = {Combining Multiple String Similarity Metrics for Effective Toponym Matching},
+       year = {2017}
+    }
    
-   @article{Santos2017b,
-      author = {Santos, Rui and Murrieta-Flores, Patricia and Calado, P{\'{a}}vel and Martins, Bruno},
-      journal = {International Journal of Geographic Information Systems},
-      title = {Toponym Matching Through Deep Neural Networks},
-      year = {2017}
-   }
+    @article{Santos2017b,
+       author = {Santos, Rui and Murrieta-Flores, Patricia and Calado, P{\'{a}}vel and Martins, Bruno},
+       journal = {International Journal of Geographic Information Systems},
+       title = {Toponym Matching Through Deep Neural Networks},
+       year = {2017}
+    }
 
 The 'dataset' folder contains the data used on the experiments that are reported on the publications above, consisting of 5 million pairs of toponyms collected from the GeoNames gazetteer.
 
