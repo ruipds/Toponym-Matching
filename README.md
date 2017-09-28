@@ -1,8 +1,8 @@
 # Toponym Matching with Deep Neural Networks
 
-This work was originally developed by Rui Santos in the context of an MSc thesis project at Instituto Superior Técnico of the University of Lisbon. His MSc research concerned with the development of methods for automatically georeferencing historical itineraries given in a tabular format.
+This work was originally developed by Rui Santos in the context of an M.Sc. thesis project at Instituto Superior Técnico of the University of Lisbon. His M.Sc. research concerned with the development of methods for automatically georeferencing historical itineraries given in a tabular format.
 
-Further developments are currently being made by Alexandre Marinho, in the context of an MSc thesis related to string matching for duplicate detection.
+Further developments are currently being made by Alexandre Marinho, in the context of an M.Sc. thesis related to string matching for duplicate detection.
 
 Toponym matching refers to the problem of matching a pair of strings that refer to the same real-world location. Several approaches were tested in the context of toponym matching experiments involving data colected from GeoNames:
 
