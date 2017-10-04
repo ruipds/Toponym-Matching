@@ -10,30 +10,121 @@ import numpy as np
 from keras.callbacks import EarlyStopping
 from keras.callbacks import ModelCheckpoint
 from keras.models import Sequential
-from keras.layers import Merge, Dense, Dropout, GRU, Bidirectional
+from keras.layers import Merge, Dense, Dropout, GRU, Bidirectional, GlobalMaxPooling1D, Layer, Masking
 from keras.layers.core import Masking
+from keras import backend as K
+from keras import initializations
+
+class GlobalMaxPooling1DMasked(GlobalMaxPooling1D):
+    def __init__(self, **kwargs):
+        self.supports_masking = True
+        super(GlobalMaxPooling1DMasked, self).__init__(**kwargs)
+    def build(self, input_shape): super(GlobalMaxPooling1DMasked, self).build(input_shape)
+    def call(self, x, mask=None): return super(GlobalMaxPooling1DMasked, self).call(x)
+
+class SelfAttLayer(Layer):
+    def __init__(self, **kwargs):
+        self.attention = None
+        self.init = initializations.get('normal')
+        self.supports_masking = True
+        super(SelfAttLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.W = self.init((input_shape[-1],))
+        self.trainable_weights = [self.W]
+        super(SelfAttLayer, self).build(input_shape)
+
+    def call(self, x, mask=None):
+        eij = K.tanh(K.dot(x, self.W))
+        ai = K.exp(eij)
+        weights = ai/K.sum(ai, axis=1).dimshuffle(0,'x')
+        weighted_input = x*weights.dimshuffle(0,1,'x')
+        self.attention = weights
+        return weighted_input.sum(axis=1)
+
+    def get_output_shape_for(self, input_shape): return (input_shape[0], input_shape[-1])
+    def compute_output_shape(self, input_shape): return self.get_output_shape_for(input_shape)
+
+def AlignmentAttention(input_1, input_2):
+    def unchanged_shape(input_shape): return input_shape
+    def softmax(x, axis=-1):
+        ndim = K.ndim(x)
+        if ndim == 2: return K.softmax(x)
+        elif ndim > 2:
+            e = K.exp(x - K.max(x, axis=axis, keepdims=True))
+            s = K.sum(e, axis=axis, keepdims=True)
+            return e / s
+        else: raise ValueError('Cannot apply softmax to a tensor that is 1D')
+    w_att_1 = Sequential()
+    w_att_1.add(Merge([input_1, input_2], mode='dot', dot_axes=-1))
+    w_att_1.add(Lambda(lambda x: softmax(x, axis=1), output_shape=unchanged_shape))
+    w_att_2 = Sequential()
+    w_att_2.add(Merge([input_1, input_2], mode='dot', dot_axes=-1))
+    w_att_2.add(Lambda(lambda x: softmax(x, axis=2), output_shape=unchanged_shape))    
+    w_att_2.add(Permute((2,1)))
+    in1_aligned = Sequential()
+    in1_aligned.add(Merge([w_att_1, input_1], mode='dot', dot_axes=1))    
+    in2_aligned = Sequential()
+    in2_aligned.add(Merge([w_att_2, input_2], mode='dot', dot_axes=1))
+    q1_combined = Sequential()
+    q1_combined.add(Merge([input_1,in2_aligned], mode='concat'))
+    q2_combined = Sequential()
+    q2_combined.add(Merge([input_2,in1_aligned], mode='concat'))
+    return q1_combined, q2_combined
 
 def deep_neural_net_gru(train_data_1, train_data_2, train_labels, test_data_1, test_data_2, test_labels, max_len,
-                        len_chars, hidden_units=60, bidirectional=True, n = 1):
+                        len_chars, hidden_units=60, bidirectional=True, selfattention=True , maxpooling=False , 
+                        alignment = True , shortcut=True , multiplerlu=True , onlyconcat=False , n = 1):
     early_stop = EarlyStopping(monitor='loss', patience=0, verbose=1)
     checkpointer = ModelCheckpoint(filepath="checkpoint" + str(n) +".hdf5", verbose=1, save_best_only=True)
-    gru1 = GRU(hidden_units, consume_less='gpu', return_sequences=True)
-    gru2 = GRU(hidden_units, consume_less='gpu', return_sequences=False)
+    gru1 = GRU(hidden_units, consume_less='gpu', return_sequences=True )
+    gru2 = GRU(hidden_units, consume_less='gpu', return_sequences=(alignment or selfattention or maxpooling) ) 
     if bidirectional:
         gru1 = Bidirectional(gru1)
         gru2 = Bidirectional(gru2)
-    left_branch = Sequential(name="left_branch")
-    left_branch.add(Masking(mask_value=0, input_shape=(max_len, len_chars), name="mask1"))
-    left_branch.add(gru1)
+    # definition for left branch of the network
+    left_branch = Sequential()
+    left_branch.add( Masking( mask_value=0 , input_shape=(max_len, len_chars) ) )
+    if shortcut:
+	      left_branch_aux1 = Sequential()
+        left_branch_aux1.add( left_branch )
+        left_branch_aux1.add( gru1 )
+	      left_branch_aux2 = Sequential()
+	      left_branch_aux2.add(Merge([left_branch, left_branch_aux1], mode='concat'))
+        left_branch = left_branch_aux2
+    else: left_branch.add( gru1 )
+    left_branch.add(Dropout(0.01))		
+    left_branch.add( gru2 )
     left_branch.add(Dropout(0.01))
-    left_branch.add(gru2)                                       #
-    left_branch.add(Dropout(0.01))                              # single bidirectional
-    right_branch = Sequential(name="right_branch")
-    right_branch.add(Masking(mask_value=0, input_shape=(max_len, len_chars), name="mask2"))
-    right_branch.add(gru1)
+    # definition for right branch of the network
+    right_branch = Sequential()
+    right_branch.add( Masking( mask_value=0 , input_shape=(max_len, len_chars) ) )
+    if shortcut:
+	      right_branch_aux1 = Sequential()
+        right_branch_aux1.add( right_branch )
+        right_branch_aux1.add( gru1 )
+	      right_branch_aux2 = Sequential()
+	      right_branch_aux2.add(Merge([right_branch, right_branch_aux1], mode='concat'))
+        right_branch = right_branch_aux2
+    else: right_branch.add( gru1 )
     right_branch.add(Dropout(0.01))
-    right_branch.add(gru2)                                      # single bidirectional
-    right_branch.add(Dropout(0.01))                             #
+    right_branch.add( gru2 )
+    right_branch.add(Dropout(0.01))
+    # mechanisms used for building representations from the GRU states (e.g., through attention)
+    if alignment : left_branch , right_branch = AlignmentAttention( left_branch , right_branch )
+    if selfattention:
+        att = SelfAttLayer()
+        left_branch.add( att )
+        right_branch.add( att )
+    elif maxpooling: 
+        left_branch.add( GlobalMaxPooling1DMasked() )  
+        right_branch.add( GlobalMaxPooling1DMasked() ) 
+    elif alignment:
+        gru3 = GRU(hidden_units, consume_less='gpu', return_sequences=False ) 
+        if bidirectional : gru3 = Bidirectional( gru3 )
+        left_branch.add( gru3 )
+        right_branch.add( gru3 )
+    # combine the two representations and produce the final classification
     con_layer = Sequential(name="con_layer")
     con_layer.add(Merge([left_branch, right_branch], mode='concat', name="merge_con"))
     mul_layer = Sequential(name="mul_layer")
@@ -42,15 +133,16 @@ def deep_neural_net_gru(train_data_1, train_data_2, train_labels, test_data_1, t
     dif_layer.add(Merge([left_branch, right_branch],
                         mode=lambda x: x[0] - x[1], output_shape=lambda x: x[0], name="merge_dif"))
     final_model = Sequential(name="final_model")
-    final_model.add(Merge([con_layer, mul_layer, dif_layer], mode='concat',name="merge_threeconcat")) # only concat
-    #final_model.add(con_layer)
+    if onlyconcat: final_model.add(con_layer)
+    else: final_model.add(Merge([con_layer, mul_layer, dif_layer], mode='concat',name="merge_threeconcat")) 
     final_model.add(Dropout(0.01))
     final_model.add(Dense(hidden_units, activation='relu'))
     final_model.add(Dropout(0.01))
-    #final_model.add(Dense(hidden_units, activation='relu'))     #
-    #final_model.add(Dropout(0.01))                              # single rlu
-    #final_model.add(Dense(hidden_units, activation='relu'))     #
-    #final_model.add(Dropout(0.01))                              #
+    if multiplerlu:
+        final_model.add(Dense(hidden_units, activation='relu'))
+        final_model.add(Dropout(0.01))
+        final_model.add(Dense(hidden_units, activation='relu'))
+        final_model.add(Dropout(0.01))
     final_model.add(Dense(1, activation='sigmoid'))
     final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     final_model.fit([train_data_1, train_data_2], train_labels, validation_data=([test_data_1, test_data_2], test_labels),
@@ -58,7 +150,6 @@ def deep_neural_net_gru(train_data_1, train_data_2, train_labels, test_data_1, t
     start_time = time.time()
     aux = final_model.predict_classes([test_data_1, test_data_2]).ravel()
     return aux, (time.time() - start_time)
-
 
 def evaluate_deep_neural_net(dataset='dataset-string-similarity.txt', method='gru', training_instances=-1,
                              bidirectional=True, hiddenunits=60):
