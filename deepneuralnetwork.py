@@ -10,7 +10,7 @@ import numpy as np
 from keras.callbacks import EarlyStopping
 from keras.callbacks import ModelCheckpoint
 from keras.models import Sequential
-from keras.layers import Merge, Dense, Dropout, GRU, Bidirectional, GlobalMaxPooling1D, Layer, Masking
+from keras.layers import Merge, Dense, Dropout, GRU, Bidirectional, GlobalMaxPooling1D, Layer, Masking, Lambda, Permute, Highway
 from keras.layers.core import Masking
 from keras import backend as K
 from keras import initializations
@@ -86,11 +86,11 @@ def deep_neural_net_gru(train_data_1, train_data_2, train_labels, test_data_1, t
     left_branch = Sequential()
     left_branch.add( Masking( mask_value=0 , input_shape=(max_len, len_chars) ) )
     if shortcut:
-	      left_branch_aux1 = Sequential()
+        left_branch_aux1 = Sequential()
         left_branch_aux1.add( left_branch )
         left_branch_aux1.add( gru1 )
-	      left_branch_aux2 = Sequential()
-	      left_branch_aux2.add(Merge([left_branch, left_branch_aux1], mode='concat'))
+        left_branch_aux2 = Sequential()
+        left_branch_aux2.add(Merge([left_branch, left_branch_aux1], mode='concat'))
         left_branch = left_branch_aux2
     else: left_branch.add( gru1 )
     left_branch.add(Dropout(0.01))		
@@ -100,11 +100,11 @@ def deep_neural_net_gru(train_data_1, train_data_2, train_labels, test_data_1, t
     right_branch = Sequential()
     right_branch.add( Masking( mask_value=0 , input_shape=(max_len, len_chars) ) )
     if shortcut:
-	      right_branch_aux1 = Sequential()
+        right_branch_aux1 = Sequential()
         right_branch_aux1.add( right_branch )
         right_branch_aux1.add( gru1 )
-	      right_branch_aux2 = Sequential()
-	      right_branch_aux2.add(Merge([right_branch, right_branch_aux1], mode='concat'))
+        right_branch_aux2 = Sequential()
+        right_branch_aux2.add(Merge([right_branch, right_branch_aux1], mode='concat'))
         right_branch = right_branch_aux2
     else: right_branch.add( gru1 )
     right_branch.add(Dropout(0.01))
@@ -139,9 +139,9 @@ def deep_neural_net_gru(train_data_1, train_data_2, train_labels, test_data_1, t
     final_model.add(Dense(hidden_units, activation='relu'))
     final_model.add(Dropout(0.01))
     if multiplerlu:
-        final_model.add(Dense(hidden_units, activation='relu'))
+        final_model.add(Highway(activation='relu'))
         final_model.add(Dropout(0.01))
-        final_model.add(Dense(hidden_units, activation='relu'))
+        final_model.add(Highway(activation='relu'))
         final_model.add(Dropout(0.01))
     final_model.add(Dense(1, activation='sigmoid'))
     final_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
@@ -299,3 +299,5 @@ def evaluate_deep_neural_net(dataset='dataset-string-similarity.txt', method='gr
     os.remove("temporary-file-dnn-3-" + method)
     os.remove("temporary-file-dnn-4-" + method)
     sys.stdout.flush()
+
+evaluate_deep_neural_net(dataset=sys.argv[1])
