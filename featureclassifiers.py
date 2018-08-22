@@ -9,11 +9,9 @@ import xgboost
 from sklearn import ensemble
 from sklearn import svm
 from sklearn import preprocessing
-from datasetcreator import damerau_levenshtein, jaccard, jaro, jaro_winkler,monge_elkan, cosine, strike_a_match, \
-    soft_jaccard, sorted_winkler, permuted_winkler, skipgram, davies
+from datasetcreator import damerau_levenshtein, jaccard, jaro, jaro_winkler,monge_elkan, cosine, strike_a_match, soft_jaccard, sorted_winkler, permuted_winkler, skipgram, davies
 
-def evaluate_classifier(dataset='dataset-string-similarity.txt' , method='rf' , training_instances=-1 ,
-                         polynomial=False, accuracyresults = False , results=False, permuted=True):
+def evaluate_classifier(dataset='dataset-string-similarity.txt', method='rf', training_instances=-1, polynomial=False, accuracyresults = False, results=False, permuted=True):
     num_true = 0.0
     num_false = 0.0
     num_true_predicted_true = 0.0
@@ -72,8 +70,7 @@ def evaluate_classifier(dataset='dataset-string-similarity.txt' , method='rf' , 
             sim9 = strike_a_match( row['s1'] , row['s2'] )
             sim12 = soft_jaccard( row['s1'] , row['s2'] )
             sim5 = sorted_winkler( row['s1'] , row['s2'] )
-            if permuted:
-                sim6 = permuted_winkler( row['s1'] , row['s2'] )
+            if permuted: sim6 = permuted_winkler( row['s1'] , row['s2'] )
             sim10 = skipgram( row['s1'] , row['s2'] )
             sim13 = davies( row['s1'] , row['s2'] )
             timer += (time.time() - start_time)
@@ -81,10 +78,9 @@ def evaluate_classifier(dataset='dataset-string-similarity.txt' , method='rf' , 
                 if len(X1) < ( ( num_true + num_false ) / 2.0 ): X1.append( [ sim1 , sim2 , sim3 , sim4 , sim5 , sim6 , sim7 , sim8 , sim9 , sim10 , sim11 , sim12 , sim13 ] )
                 else: X2.append( [ sim1 , sim2 , sim3 , sim4 , sim5 , sim6 , sim7 , sim8 , sim9 , sim10 , sim11 , sim12 , sim13 ] )
             else:
-                if len(X1) < ((num_true + num_false) / 2.0): X1.append([sim1, sim2, sim3, sim4, sim5, sim7, sim8, sim9, sim10, sim11, sim12, sim13])
-                else:
-                    X2.append([sim1, sim2, sim3, sim4, sim5, sim7, sim8, sim9, sim10, sim11, sim12, sim13])
-
+                if len(X1) < ( ( num_true + num_false ) / 2.0 ): X1.append([sim1, sim2, sim3, sim4, sim5, sim7, sim8, sim9, sim10, sim11, sim12, sim13])
+                else: X2.append([sim1, sim2, sim3, sim4, sim5, sim7, sim8, sim9, sim10, sim11, sim12, sim13])
+                    
     if polynomial:
         X1 = preprocessing.PolynomialFeatures().fit_transform(X1)
         X2 = preprocessing.PolynomialFeatures().fit_transform(X2)
@@ -95,7 +91,6 @@ def evaluate_classifier(dataset='dataset-string-similarity.txt' , method='rf' , 
     else:
         model1.fit( np.array(X1) , np.array(Y1) )
         model2.fit( np.array(X2) , np.array(Y2) )
-
 
     print "Matching records..."
     real = Y2 + Y1
