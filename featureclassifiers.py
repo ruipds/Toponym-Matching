@@ -95,7 +95,7 @@ def evaluate_classifier(dataset='dataset-string-similarity.txt', method='rf', tr
     print "Matching records..."
     real = Y2 + Y1
     start_time = time.time()
-    predicted = list( model2.predict( np.array(X1) ) ) + list( model1.predict( np.array(X2) ) )
+    predicted = list( model1.predict( np.array(X2) ) ) + list( model2.predict( np.array(X1) ) )
     timer += (time.time() - start_time)
     for pos in range( len( real ) ):
         if real[pos] == 1.0:
