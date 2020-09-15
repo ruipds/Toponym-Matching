@@ -35,12 +35,11 @@ class SelfAttLayer(Layer):
         super(SelfAttLayer, self).build(input_shape)
 
     def call(self, x, mask=None):
-        eij = K.tanh(K.dot(x, self.W))
+        eij = K.tanh(K.squeeze(K.dot(x, K.expand_dims(self.W)), axis=-1))
         ai = K.exp(eij)
-        weights = ai/K.sum(ai, axis=1).dimshuffle(0,'x')
-        weighted_input = x*weights.dimshuffle(0,1,'x')
-        self.attention = weights
-        return weighted_input.sum(axis=1)
+        weights = ai/K.expand_dims(K.sum(ai, axis=1),1)
+        weighted_input = x*K.expand_dims(weights,2)
+        return K.sum(weighted_input, axis=1)
 
     def get_output_shape_for(self, input_shape): return (input_shape[0], input_shape[-1])
     def compute_output_shape(self, input_shape): return self.get_output_shape_for(input_shape)
